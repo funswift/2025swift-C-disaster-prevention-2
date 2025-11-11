@@ -44,6 +44,7 @@ export default function Result() {
             width={1200}
             height={400}
             className="w-full h-auto object-contain"
+            priority
           />
         </div>
       </header>
@@ -58,6 +59,7 @@ export default function Result() {
               width={1200}
               height={600}
               style={{ maxWidth: "80%", height: "auto" }}
+              priority
             />
           </div>
 

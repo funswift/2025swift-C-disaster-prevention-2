@@ -7,17 +7,28 @@ import { useRouter } from "next/navigation"; // ページ遷移のためにイ�
 /* データと子コンポーネントをインポート */
 import { calculatePreparedness } from "../../../data/calculate";
 
-import { Question, questions } from "data/questions";
+import { Question} from "data/question2";
+import {questions2 as questions } from "data/question2";
 import SingleChoiceQuestion from "@/components/SingleChoiceQuestion";
 import MultipleChoiceQuestion from "@/components/MultipleChoiceQuestion";
 import { optimizeImage } from "next/dist/server/image-optimizer";
 
 export default function Page() {
-    /* routerオブジェクトを取得 */
-    const router = useRouter();
+  /* 診断ページ１の回答を取得（初期値としてマージするために useState の初期値へ） */
+  const initialAnswersPart1 = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("answers_part1") || "{}");
+    } catch (e) {
+      console.warn("Failed to parse answers_part1 from localStorage:", e);
+      return {};
+    }
+  })();
 
-    /* 全ての回答を一つのオブジェクトで管理 */
-    const [answers, setAnswers] = useState<{ [key: string]: string | string[] }>({});
+  /* routerオブジェクトを取得 */
+  const router = useRouter();
+
+  /* 全ての回答を一つのオブジェクトで管理。前ページの回答を初期値として取り込む */
+  const [answers, setAnswers] = useState<{ [key: string]: string | string[] }>(() => ({ ...initialAnswersPart1 }));
 
     /* エラーメッセージの管理 */
     const[errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -30,18 +41,11 @@ export default function Page() {
 
 
     /* 回答が更新されたときに呼ばれる関数 */
-  const answerUpdate = (
-    questionId: string,
-    value: string | string[],
-    questionType: string,
-    questionName?: string
-  ) => {
-    setAnswers(prevAnswers => ({
-      ...prevAnswers,
-      // 保存は質問IDでも、質問のnameでも行う（calculatePreparedness が両方を参照するため）
-      [questionId]: value,
-      ...(questionName ? { [questionName]: value } : {}),
-    }));
+    const answerUpdate = (questionId: string, value: string | string[], questionType: string) => {
+        setAnswers(prevAnswers => ({
+            ...prevAnswers,
+            [questionId]: value
+        }));
 
         /* 回答が入力されたら、その問題のエラーメッセージを消す*/
         if (errors[questionId]) {
@@ -52,13 +56,13 @@ export default function Page() {
             });
         }
 
-    // ラジオボタン（単一選択）の場合のみ自動スクロールを実行
+        // ラジオボタン（単一選択）の場合のみ自動スクロールを実行
         if (questionType === 'radio') {
             const currentIndex = questions.findIndex(q => q.id === questionId);
             const nextIndex = currentIndex + 1;
             // 次の問題が存在する場合
             if (nextIndex < questions.length) {
-        const nextQuestionEl = questionRefs.current[nextIndex];
+                const nextQuestionEl = questionRefs.current[nextIndex];
                 if (nextQuestionEl) {
                     setTimeout(() => {
                         nextQuestionEl.scrollIntoView({
@@ -100,38 +104,38 @@ export default function Page() {
             return;
         }
 
-        console.log("最終的な回答:", answers);
+        // 前ページの回答（answers_part1）と今ページの回答をマージして最終回答とする
+        const answersPart1 = (() => {
+          try {
+            return JSON.parse(localStorage.getItem("answers_part1") || "{}");
+          } catch (e) {
+            return {};
+          }
+        })();
+
+        const mergedAnswers = { ...answersPart1, ...answers };
+        console.log("最終的な回答:", mergedAnswers);
         //診断ロジックを実行
-        const result = calculatePreparedness(answers);
+        const result = calculatePreparedness(mergedAnswers);
         console.log("診断結果:", result);
 
         //結果を localStorage に保存（ページ遷移後に取り出す用）
         //localStorage.setItem("disasterResult", result);
         // localStorage.setItem("disasterResult", JSON.stringify(result));
 
-        const goNext = () => {
-            // 今の回答を localStorage に保存
-            localStorage.setItem("answers", JSON.stringify(answers));
+      
+  // 今の回答（前ページとマージした最終）を localStorage に保存
+  localStorage.setItem("answers_part2", JSON.stringify(mergedAnswers));
 
-            // ページ2へ遷移
-            router.push("/posts/questions2");
-        };
+        
 
-        goNext();
+
+        /* 診断ボタンが押されたら結果ページに遷移 */
+        /* その際クエリパラメータに診断結果ファイル名を付記 */
+        const params = new URLSearchParams({ main: result.main, sub: result.sub ? result.sub.join(',') : '' });
+        router.push('/posts/result?' + params.toString());
 
     };
-
-  function handleNext(event?: React.MouseEvent<HTMLButtonElement>): void {
-    event?.preventDefault();
-
-    try {
-      localStorage.setItem("answers_part1", JSON.stringify(answers));
-    } catch (e) {
-      console.warn("Failed to save answers to localStorage:", e);
-    }
-
-    router.push("/posts/questions2");
-  }
 
     /* classNameでデザインを変更可能（Bootstrapというものに定義されているCSS）*/
 return (
@@ -149,7 +153,7 @@ return (
                 <SingleChoiceQuestion
                   text={question.text}
                   options={question.options}
-                  callback={(value) => answerUpdate(question.id, value, question.type, question.name)}
+                  callback={(value) => answerUpdate(question.id, value, question.type)}
                 />
               );
             } else if (question.type === "checkbox") {
@@ -157,7 +161,7 @@ return (
                 <MultipleChoiceQuestion
                   text={question.text}
                   options={question.options}
-                  callback={(value) => answerUpdate(question.id, value, question.type, question.name)}
+                  callback={(value) => answerUpdate(question.id, value, question.type)}
                 />
               );
             }
@@ -178,9 +182,9 @@ return (
     <div className="text-center mt-5 p-8">
       <button
         className="bg-[#FEAF71] border-[#CCBFA7] w-full py-3 px-6 rounded-full text-2xl"
-        onClick={handleNext}
+        onClick={submit}
       >
-        次のページへ→
+        診断結果へ→
       </button>
     </div>
     <Link href="/" className="btn btn-secondary mt-4">

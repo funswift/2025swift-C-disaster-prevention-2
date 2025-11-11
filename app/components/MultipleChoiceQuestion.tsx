@@ -20,11 +20,11 @@ export default function MultipleChoiceQuestion({
   return (
     <div className="my-6 p-4 rounded flex flex-col">
       <p className="text-3xl p-4">{text}</p>
-      <div className="p-4 flex flex-col gap-2 items-center w-full">
+      <div className="p-4 flex flex-row gap-2">
         {options.map((option, index) => (
           <button
             key={index}
-                className={`${baseClasses} ${choices.includes(index) ? selectedClasses : unselectedClasses} rounded-lg !text-2xl w-full items-center`}
+                className={`${baseClasses} ${choices.includes(index) ? selectedClasses : unselectedClasses} rounded-lg !text-2xl`}
             onClick={() => {
               const tmp = choices.includes(index)
                 ? choices.filter((i) => i !== index)

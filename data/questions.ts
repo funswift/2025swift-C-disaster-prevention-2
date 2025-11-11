@@ -61,7 +61,9 @@ export const questions: Question[] = [
     options: [
       { label: "できている", value: "yes" },
       { label: "できているがどれだけ必要かわからない", value: "no" },
-      { label: "できていない", value: "no"}
+      { label: "できていない", value: "no" },
+      { label: "4", value: "no" },
+      { label: "5", value: "no" }
     ],
   },
   
